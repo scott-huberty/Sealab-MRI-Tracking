@@ -54,6 +54,11 @@ def build_acquisition_csv(session):
 
         has_t1w = any(anat_path.glob("*_T1w.*"))
         has_t2w = any(anat_path.glob("*_T2w.*"))
+        if not has_t1w and not has_t2w:
+            anat_raw_path = sub_path / f"ses-{ses}" / "anat_raw"
+            if anat_raw_path.exists():
+                has_t1w = any(anat_raw_path.glob("*_T1w.*"))
+                has_t2w = any(anat_raw_path.glob("*_T2w.*"))
 
         df.loc[i, f"T1w"] = has_t1w
         df.loc[i, f"T2w"] = has_t2w
