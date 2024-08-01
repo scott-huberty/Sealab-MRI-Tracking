@@ -199,7 +199,6 @@ df_babies = df_babies[reordered_columns]
 # 1. If the scan is not acquired, set the corresponding processed columns to "N/A"
 # 2. If the scan is acquired, set the corresponding processed columns to "Not Processed" if they are False
 # 3. If the scan is acquired, set the corresponding processed columns to "Processed" if they are True
-assert 1 == 0
 
 # Save DataFrames to csv
 df_acquired.to_csv(
@@ -210,51 +209,5 @@ df_babies.to_csv(
     "./reports/BABIES.csv"
 )  # pd.read_csv(..., header=[0, 1, 2], index_col=[0])
 
-### Let's nicely format the data for Google sheets ####
-### Within a session, if some but not all scans are missing, we should mark the missing scans as "Not Acquired"
-### if all scans are there, we should mark each scans as "Acquired"
-
-# first some missing:
-for ii, row in df_babies.T.iterrows():
-    for age in ["Newborn", "Six Months"]:
-        these_scans = [row[age, col] for col in SCANS]
-        if any([is_falsey(row[these_scans]) for col in these_scans]):
-            for col in these_scans:
-                df_babies.at[ii, col] = "Not Acquired"
-
-# Create plots
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-sns.set_theme(style="darkgrid")
-
-fig, ax = plt.subplots(figsize=(10, 5), constrained_layout=True)
-
-# Grouped bar chart of Scan counts, X axis Scan type, Hue by visit,
-to_drop = [("Acquired", visit, scan) for visit in ["Newborn", "Six Months"] for scan in ["T1w", "T2w"]]
-data = df_babies.T.drop("Processed").drop(to_drop)
-data = data.groupby(level=[0, 1, 2]).sum().sum(axis=1).to_frame(name="Value").stack().reset_index().rename(columns={0: "Value"})
-
-with sns.color_palette("pastel"):
-    sns.barplot(x="Scan", y="Value", hue="Visit", data=data, ax=ax)
-
-data.to_csv("./reports/scan_counts.csv")
-
-to_drop = [("Processed", visit, col) for visit in ["Newborn", "Six Months"] for col in ["Surface-Recon-Method", "Date-Processed", "Precomputed", "Recon-all"]]
-data = df_babies.T.drop("Acquired").drop(to_drop).groupby(by=["Visit", "Scan"]).sum().sum(axis=1)
-data = data.to_frame().stack().reset_index().rename(columns={0: "Value"})
-with sns.color_palette("muted"):
-    sns.barplot(
-        x="Scan",
-        y="Value", 
-        hue="Visit", 
-        data=data, 
-        ax=ax,
-        linewidth=2.5,
-        edgecolor=".5",
-        )
-data.to_csv("./reports/processed_counts.csv")
-fig.savefig("./reports/scan_counts.png")
-
 #cond_new = ((df_babies[("Acquired", "Newborn", "Anatomical")] == True
-# cond_six = ((df_babies[("Acquired", "Six Months", "Anatomical")] == True) |
+# cond_six = ((df_babies[("Acquired", "Six Months", "Anatomical")] == True)
