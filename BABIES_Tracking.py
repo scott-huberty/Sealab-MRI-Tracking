@@ -106,8 +106,9 @@ def build_nibabies_csv(session):
     
     df = pd.read_csv(csv_fname, header=None, names=["study_id"])
     df["Anatomical"] = None
-    df["Functional"] = None
     df["Surface-Recon-Method"] = None
+    df["Functional-Volume"] = None
+    df["Functional-Surface"] = None
 
     SI_df = build_SI_data_df(session)
     for i, series in df.iterrows():
@@ -127,7 +128,7 @@ def build_nibabies_csv(session):
 
         has_func = func_path.exists() and any(func_path.glob("*"))
         has_volume = func_path.exists() and any(func_path.glob("*_boldref.nii.gz"))
-        has_cifti = func_path.exists() and any(func_path.glob("*k_boldref.dtseries.nii*"))
+        has_cifti = func_path.exists() and any(func_path.glob("*k_bold.dtseries.nii*"))
 
         # check if subject in SI_data
 
@@ -135,7 +136,6 @@ def build_nibabies_csv(session):
         has_SI_volume = exists_in_SI and SI_df.loc[SI_df["study_id"] == sub, "Volume"].values[0]
         has_SI_cifti = exists_in_SI and SI_df.loc[SI_df["study_id"] == sub, "Cifti"].values[0]
 
-        df.loc[i, f"Functional"] = has_func
         df.loc[i, f"Functional-Volume"] = has_volume or has_SI_volume
         df.loc[i, f"Functional-Surface"] = has_cifti or has_SI_cifti
 
@@ -166,12 +166,12 @@ def build_SI_data_df(session):
     df[f"Cifti"] = None
     for i, series in df.iterrows():
         sub = series["study_id"]
-        sub_path = SI_data_path / sub
+        sub_path = SI_PATH / sub
         func_path = sub_path / f"ses-{session}" / "func"
         has_SI_data = func_path.exists() and any(sub_path.glob("*"))
         df.loc[i, f"SI_data"] = has_SI_data
         has_volume = func_path.exists() and any(func_path.glob("*_boldref.nii.gz"))
-        has_cifti = func_path.exists() and any(func_path.glob("*k_boldref.dtseries.nii*"))
+        has_cifti = func_path.exists() and any(func_path.glob("*k_bold.dtseries.nii*"))
         df.loc[i, f"Volume"] = has_volume
         df.loc[i, f"Cifti"] = has_cifti
 
