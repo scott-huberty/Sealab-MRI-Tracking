@@ -23,6 +23,7 @@ SESSION = args.session
 SERVER_PATH = Path("/Volumes") / "HumphreysLab" / "Daily_2" / "BABIES" / "MRI" / SESSION
 BIDS_PATH = SERVER_PATH / "bids"
 DERIVATIVES_PATH = SERVER_PATH / "derivatives"
+SI_PATH = SERVER_PATH.parent / "SI_data" / "derivatives"/ "nibabies_new"
 
 # Script
 def build_acquisition_csv(session):
@@ -107,6 +108,8 @@ def build_nibabies_csv(session):
     df["Anatomical"] = None
     df["Functional"] = None
     df["Surface-Recon-Method"] = None
+
+    SI_df = build_SI_data_df(session)
     for i, series in df.iterrows():
         sub = series["study_id"]
         sub_path = nibabies_path / sub
@@ -114,18 +117,29 @@ def build_nibabies_csv(session):
         ses_path = sub_path / f"ses-{ses}"
         anat_path = ses_path / "anat"
         func_path = ses_path / "func"
+        # Have to load the toml file from the log folder
+        # We use the most recent run to specify the surface recon method
+        log_path = ses_path / "log"
+        toml_data = load_nibabies_toml(log_path)
 
         has_anat = anat_path.exists() and any(anat_path.glob("*"))
         df.loc[i, f"Anatomical"] = has_anat
 
         has_func = func_path.exists() and any(func_path.glob("*"))
+        has_volume = func_path.exists() and any(func_path.glob("*_boldref.nii.gz"))
+        has_cifti = func_path.exists() and any(func_path.glob("*k_boldref.dtseries.nii*"))
+
+        # check if subject in SI_data
+
+        exists_in_SI = sub in SI_df["study_id"].values
+        has_SI_volume = exists_in_SI and SI_df.loc[SI_df["study_id"] == sub, "Volume"].values[0]
+        has_SI_cifti = exists_in_SI and SI_df.loc[SI_df["study_id"] == sub, "Cifti"].values[0]
+
         df.loc[i, f"Functional"] = has_func
+        df.loc[i, f"Functional-Volume"] = has_volume or has_SI_volume
+        df.loc[i, f"Functional-Surface"] = has_cifti or has_SI_cifti
 
         # Check for surface recon method
-        # Have to load the toml file from the log folder
-        # We use the most recent run to specify the surface recon method
-        log_path = ses_path / "log"
-        toml_data = load_nibabies_toml(log_path)
         recon_method = toml_data["workflow"]["surface_recon_method"]
         df.loc[i, f"Surface-Recon-Method"] = recon_method
 
@@ -137,6 +151,30 @@ def build_nibabies_csv(session):
     print(f"\n Saving Nibabies CSV file to {csv_fname.resolve()}")
     df.to_csv(csv_fname, index=False)
     print("✅ Done!")
+    return df
+
+def build_SI_data_df(session):
+    """ Build a CSV File for SI data."""
+    command = f"ls -d {SI_PATH / 'sub-*/'} | xargs -n1 basename"
+    output = subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, text=True)
+    csv_fname = Path(f"./csv/SI_data_{session}.csv")
+    with csv_fname.open("w") as f:
+        f.write(output.stdout)
+    df = pd.read_csv(csv_fname, header=None, names=["study_id"])
+    df[f"SI_data"] = None
+    df[f"Volume"] = None
+    df[f"Cifti"] = None
+    for i, series in df.iterrows():
+        sub = series["study_id"]
+        sub_path = SI_data_path / sub
+        func_path = sub_path / f"ses-{session}" / "func"
+        has_SI_data = func_path.exists() and any(sub_path.glob("*"))
+        df.loc[i, f"SI_data"] = has_SI_data
+        has_volume = func_path.exists() and any(func_path.glob("*_boldref.nii.gz"))
+        has_cifti = func_path.exists() and any(func_path.glob("*k_boldref.dtseries.nii*"))
+        df.loc[i, f"Volume"] = has_volume
+        df.loc[i, f"Cifti"] = has_cifti
+
     return df
 
 def build_dwi_csv(session):
