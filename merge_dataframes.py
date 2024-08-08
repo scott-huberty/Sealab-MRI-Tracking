@@ -7,7 +7,7 @@ from redcap import get_redcap_df
 sns.set_theme(style="darkgrid")
 
 SCANS = ["Anatomical", "T1w", "T2w", "Functional", "DWI"]
-PROCESSED = ["Anatomical", "Functional", "DWI", "Precomputed", "Recon-all"]
+PROCESSED = ["Anatomical", "Functional-Volume", "Functional-Surface", "DWI", "Precomputed", "Recon-all"]
 
 # read csv files
 df_newborn = pd.read_csv("./csv/participants_newborn.csv", index_col="study_id")
@@ -112,6 +112,7 @@ for ii, row in df_babies.iterrows():
                     df_babies.at[ii, ("Acquired", "Six Months", "sixmo_notscan_v2")] = "Unknown"
             for col in these_scans:
                 scan = col[-1]
+                # if the scan is not acquired, set the corresponding processed columns to "N/A"
                 if is_falsey(row[col]) or isinstance(row[col], str):
                     if is_falsey(row[col]):
                         df_babies.at[ii, col] = "Not Acquired"
@@ -125,6 +126,9 @@ for ii, row in df_babies.iterrows():
                         df_babies.at[ii, ("Processed", age, "Date-Processed")] = "N/A"
                         df_babies.at[ii, ("Processed", age, "Precomputed")] = "N/A"
                         df_babies.at[ii, ("Processed", age, "Recon-all")] = "N/A"
+                    elif scan == "Functional":
+                        df_babies.at[ii, ("Processed", age, "Functional-Volume")] = "N/A"
+                        df_babies.at[ii, ("Processed", age, "Functional-Surface")] = "N/A"
                 elif row[col] == True:
                     df_babies.at[ii, col] = "Acquired"
                     try:
@@ -147,9 +151,20 @@ for ii, row in df_babies.iterrows():
                             df_babies.at[ii, ("Processed", age, "Recon-all")] = "Not Processed"
                         elif row[("Processed", age, "Recon-all")] == True:
                             df_babies.at[ii, ("Processed", age, "Recon-all")] = "Processed"
+                    elif scan == "Functional":
+                        if is_falsey(row[("Processed", age, "Functional-Volume")]):
+                            df_babies.at[ii, ("Processed", age, "Functional-Volume")] = "Not Processed"
+                        elif row[("Processed", age, "Functional-Volume")] == True:
+                            df_babies.at[ii, ("Processed", age, "Functional-Volume")] = "Processed"
+                        if is_falsey(row[("Processed", age, "Functional-Surface")]):
+                            df_babies.at[ii, ("Processed", age, "Functional-Surface")] = "Not Processed"
+                        elif row[("Processed", age, "Functional-Surface")] == True:
+                            df_babies.at[ii, ("Processed", age, "Functional-Surface")] = "Processed"
                 else:
                     pass
         elif all([row[this_scan] == True for this_scan in these_scans]):
+            # if all scans are acquired, set the status to "Completed"
+            # and the reason not acquired to "N/A"
             if age == "Newborn":
                 df_babies.at[ii, ("Acquired", "Newborn", "neonatal_status_v2")] = "Completed"
                 df_babies.at[ii, ("Acquired", "Newborn", "neonatal_notscan_v2")] = "N/A"
@@ -178,6 +193,15 @@ for ii, row in df_babies.iterrows():
                         df_babies.at[ii, ("Processed", age, "Recon-all")] = "Not Processed"
                     elif row[("Processed", age, "Recon-all")] == True:
                         df_babies.at[ii, ("Processed", age, "Recon-all")] = "Processed"
+                elif scan == "Functional":
+                    if is_falsey(row[("Processed", age, "Functional-Volume")]):
+                        df_babies.at[ii, ("Processed", age, "Functional-Volume")] = "Not Processed"
+                    elif row[("Processed", age, "Functional-Volume")] == True:
+                        df_babies.at[ii, ("Processed", age, "Functional-Volume")] = "Processed"
+                    if is_falsey(row[("Processed", age, "Functional-Surface")]):
+                        df_babies.at[ii, ("Processed", age, "Functional-Surface")] = "Not Processed"
+                    elif row[("Processed", age, "Functional-Surface")] == True:
+                        df_babies.at[ii, ("Processed", age, "Functional-Surface")] = "Processed"
 
 to_drop_newborn = [("Acquired", "Newborn", col) for col in ["sixmo_status_v2", "sixmo_notscan_v2"]]
 to_drop_sixmonth = [("Acquired", "Six Months", col) for col in ["neonatal_status_v2", "neonatal_notscan_v2"]]
