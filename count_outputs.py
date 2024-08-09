@@ -5,16 +5,18 @@ import dataframes
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Process MRI data.")
-    parser.add_argument("project",
+    parser.add_argument("--project",
                         type=str,
                         required=True,
                         choices=["ABC", "BABIES",],
+                        dest="project",
                         help="Project name. Must be 'ABC' or 'BABIES'.",
                         )
-    parser.add_argument("session",
+    parser.add_argument("--session",
                         type=str,
                         required=True,
                         choices=["newborn", "sixmonth", "twelvemonth"],
+                        dest="session",
                         help="Visit. Must be 'newborn', 'sixmonth', or 'twelvemonth'.",
                         )
     args = parser.parse_args()

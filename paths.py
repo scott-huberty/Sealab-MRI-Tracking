@@ -1,7 +1,7 @@
 from pathlib import Path
 
 # Path to the root directory of the project
-ROOT_DIR = Path(__file__).resolve() # .parents[1]
+ROOT_DIR = Path(__file__).parent.resolve() # .parents[1]
 SERVER_PATH = Path("/Volumes") / "HumphreysLab" / "Daily_2"
 
 def _get_session_dir(project, session):

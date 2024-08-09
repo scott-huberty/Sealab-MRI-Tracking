@@ -1,4 +1,10 @@
+import re
+
+from datetime import datetime
 from pathlib import Path
+
+import pandas as pd
+import toml
 
 import paths as p
 
@@ -12,11 +18,11 @@ def create_participant_df(subjects_path):
         The path to a BIDS-like directory containing the participant folders.
     """
     # Extract the sub-* foldernames and write to file for later use
-    participant_list = get_participant_list(subjects_path)
+    participants_list = get_participant_list(subjects_path)
     df = pd.DataFrame(participants_list, columns=["study_id"])
     return df
 
-def get_participant_list(directory, command=None):
+def get_participant_list(directory):
     """Get a list of the participant folders in a BIDS-like a directory.
     
     Parameters
@@ -24,9 +30,12 @@ def get_participant_list(directory, command=None):
     directory : pathlib.Path
         The directory containing the participant folders.
     """
-    command = f"ls -d {directory / 'sub-*'} | grep -v '\.html$' | xargs -n1 basename"
-    output = subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, text=True)
-    return output.stdout.strip().split("\n")
+    files = [f.name for f in directory.glob("sub-*/") if f.is_dir()]
+    # assert that no html files were added
+    assert not any([f.endswith(".html") for f in files])
+    if not files:
+        print(f"No participants found in {directory}")
+    return files
 
 
 def find_log_file(log_path):
@@ -75,9 +84,9 @@ def print_starting_msg(project, session, step):
     """Print a message to the console."""
     print(f"👇 Documenting which {project}-{session} subjects Have {step} data! 👇")
 
-def save_df_to_csv(df, project, session):
+def save_df_to_csv(df, project, session, stage):
     """Save a dataframe to a CSV file."""
-    csv_fname = Path(f"acquisition_{project}_{session}.csv")
+    csv_fname = Path(f"{project}_{session}_{stage}.csv")
     out_path = p.ROOT_DIR / "csv" / csv_fname
     print(f"Saving CSV file to {out_path.resolve()}")
     df.to_csv(out_path, index=False)
