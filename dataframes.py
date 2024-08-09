@@ -1,12 +1,14 @@
 from pathlib import Path
 
 import pandas as pd
-from utils import (create_participant_df,
-                   extract_processing_datetime,
-                   load_nibabies_toml,
-                   print_starting_msg,
-                   save_df_to_csv)
-from paths import get_paths, SERVER_PATH
+from paths import SERVER_PATH, get_paths
+from utils import (
+    create_participant_df,
+    extract_processing_datetime,
+    load_nibabies_toml,
+    print_starting_msg,
+    save_df_to_csv,
+)
 
 
 def build_acquisition_df(project, session):
@@ -207,7 +209,7 @@ def build_precomputed_df(project, session):
     precomputed_path = get_paths(project, session)["derivatives"] / "precomputed"
     if not precomputed_path.exists():
         print(f"No precomputed data found in {precomputed_path}")
-        return pd.DataFrame(columns=["study_id"])
+        return pd.DataFrame(columns=["study_id", "Precomputed"])
     df = create_participant_df(precomputed_path)
     df[f"Precomputed"] = None
 

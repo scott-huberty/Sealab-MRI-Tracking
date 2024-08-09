@@ -22,4 +22,16 @@ def get_paths(project, session):
     path_dict = dict(zip(keys, paths))
     return path_dict
 
+def get_csv_paths(project):
+    csv_path = ROOT_DIR / "csv"
+    return {"redcap": csv_path / f"redcap_{project}.csv",
+            "datadict": csv_path / f"{project}_DataDictionary.csv",
+            "acquisition_newborn": csv_path / f"{project}_newborn_acquisition.csv",
+            "acquisition_sixmonth": csv_path / f"{project}_sixmonth_acquisition.csv",
+            "acquisition_twelvemonth": csv_path / f"{project}_twelvemonth_acquisition.csv",
+            "derivatives_newborn": csv_path / f"{project}_newborn_derivatives.csv",
+            "derivatives_sixmonth": csv_path / f"{project}_sixmonth_derivatives.csv",
+            "derivatives_twelvemonth": csv_path / f"{project}_twelvemonth_derivatives.csv",
+            }
+
 
