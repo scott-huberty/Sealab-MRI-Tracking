@@ -24,23 +24,45 @@ def _get_missing_reason(row, age):
         return row[f"{age}_status_v2"]
     return row[f"{age}_notscan_v2"]
 
+def _check_is_false(row, age, check="status"):
+    age_map = dict(newborn="neonatal", sixmonth="sixmo")
+    age_map = {"Newborn": "neonatal", "Six Months": "sixmo", "Twelve Months": "twelvemo"}
+    age_val = age_map[age]
+    assert check in ["status", "notscan"]
+    if check == "status":
+        if age == "Twelve Months":
+            return row[(f"Acquired", age, "scan_status_12")] == False
+        return row[(f"Acquired", age, f"{age_val}_status_v2")] == False
+    elif check == "notscan":
+        if age == "Twelve Months":
+            return row[(f"Acquired", age, f"{age_val}_notscan_v3")] == False
+        return row[(f"Acquired", age, f"{age_val}_notscan_v2")] == False
+    return False
 
-
-def refine_the_dataframe(df_babies):
+def refine_the_dataframe(df_babies, project):
+    if project == "ABC":
+        AGES = ["Newborn", "Six Months", "Twelve Months"]
+    elif project == "BABIES":
+        AGES = ["Newborn", "Six Months"]
     for ii, row in df_babies.iterrows():
-        for age in ["Newborn", "Six Months"]:
+        for age in AGES:
             these_scans = [("Acquired", age, col) for col in SCANS]
+            ############################
+            # MISSING ALL SCANS
+            ############################
             if all([is_falsey(row[this_scan]) or isinstance(row[this_scan], str) for this_scan in these_scans]):
-                if age == "Newborn":
-                    if row[("Acquired", "Newborn", "neonatal_status_v2")] == False:
-                        df_babies.at[ii, ("Acquired", "Newborn", "neonatal_status_v2")] = "Unknown"
-                    if row[("Acquired", "Newborn", "neonatal_notscan_v2")] == False:
-                        df_babies.at[ii, ("Acquired", "Newborn", "neonatal_notscan_v2")] = "Unknown"
-                elif age == "Six Months":
-                    if row[("Acquired", "Six Months", "sixmo_status_v2")] == False:
-                        df_babies.at[ii, ("Acquired", "Six Months", "sixmo_status_v2")] = "Unknown"
-                    if row[("Acquired", "Six Months", "sixmo_notscan_v2")] == False:
-                        df_babies.at[ii, ("Acquired", "Six Months", "sixmo_notscan_v2")] = "Unknown"
+                # If status/missing reason is False, set to "Unknown"
+                for this_age, col, in zip(["Newborn", "Six Months"], ["neonatal_status_v2", "sixmo_status_v2"]):
+                    if row[("Acquired", this_age, col)] == False:
+                        df_babies.at[ii, ("Acquired", this_age, col)] = "Unknown"
+                for this_age, col, in zip(["Newborn", "Six Months"], ["neonatal_notscan_v2", "sixmo_notscan_v2"]):
+                    if row[("Acquired", this_age, col)] == False:
+                        df_babies.at[ii, ("Acquired", this_age, col)] = "Unknown"
+                if "Twelve Months" in AGES:
+                    if row[("Acquired", "Twelve Months", "scan_status_12")] == False:
+                        df_babies.at[ii, ("Acquired", "Twelve Months", "scan_status_12")] = "Unknown"
+                    if row[("Acquired", "Twelve Months", "twelvemo_notscan_v3")] == False:
+                        df_babies.at[ii, ("Acquired", "Twelve Months", "twelvemo_notscan_v3")] = "Unknown"
                 if all([is_falsey(row[this_scan]) for this_scan in these_scans]):
                     for col in these_scans:
                         df_babies.at[ii, col] = "Not Acquired"
@@ -48,17 +70,31 @@ def refine_the_dataframe(df_babies):
                     df_babies.at[ii, ("Processed", age, col)] = "N/A"
                     df_babies.at[ii, ("Processed", age, "Surface-Recon-Method")] = "N/A"
                     df_babies.at[ii, ("Processed", age, "Date-Processed")] = "N/A"
+            ############################
+            # SOME SCANS MISSING
+            ############################
             elif any([is_falsey(row[this_scan]) or isinstance(row[this_scan], str) for this_scan in these_scans]):
                 if age == "Newborn":
                     if row[("Acquired", "Newborn", "neonatal_status_v2")] == False:
+                        assert _check_is_false(row, "Newborn", "status")
                         df_babies.at[ii, ("Acquired", "Newborn", "neonatal_status_v2")] = "Unknown"
                     if row[("Acquired", "Newborn", "neonatal_notscan_v2")] == False:
+                        assert _check_is_false(row, "Newborn", "notscan")
                         df_babies.at[ii, ("Acquired", "Newborn", "neonatal_notscan_v2")] = "Unknown"
                 elif age == "Six Months":
                     if row[("Acquired", "Six Months", "sixmo_status_v2")] == False:
+                        assert _check_is_false(row, "Six Months", "status")
                         df_babies.at[ii, ("Acquired", "Six Months", "sixmo_status_v2")] = "Unknown"
                     if row[("Acquired", "Six Months", "sixmo_notscan_v2")] == False:
+                        assert _check_is_false(row, "Six Months", "notscan")
                         df_babies.at[ii, ("Acquired", "Six Months", "sixmo_notscan_v2")] = "Unknown"
+                elif age == "Twelve Months":
+                    if row[("Acquired", "Twelve Months", "scan_status_12")] == False:
+                        assert _check_is_false(row, "Twelve Months", "status")
+                        df_babies.at[ii, ("Acquired", "Twelve Months", "scan_status_12")] = "Unknown"
+                    if row[("Acquired", "Twelve Months", "twelvemo_notscan_v3")] == False:
+                        assert _check_is_false(row, "Twelve Months", "notscan")
+                        df_babies.at[ii, ("Acquired", "Twelve Months", "twelvemo_notscan_v3")] = "Unknown"
                 for col in these_scans:
                     scan = col[-1]
                     # if the scan is not acquired, set the corresponding processed columns to "N/A"
@@ -111,6 +147,9 @@ def refine_the_dataframe(df_babies):
                                 df_babies.at[ii, ("Processed", age, "Functional-Surface")] = "Processed"
                     else:
                         pass
+            ############################
+            # ALL SCANS ACQUIRED
+            ############################
             elif all([row[this_scan] == True for this_scan in these_scans]):
                 # if all scans are acquired, set the status to "Completed"
                 # and the reason not acquired to "N/A"
@@ -120,6 +159,9 @@ def refine_the_dataframe(df_babies):
                 elif age == "Six Months":
                     df_babies.at[ii, ("Acquired", "Six Months", "sixmo_status_v2")] = "Completed"
                     df_babies.at[ii, ("Acquired", "Six Months", "sixmo_notscan_v2")] = "N/A"
+                elif age == "Twelve Months":
+                    df_babies.at[ii, ("Acquired", "Twelve Months", "scan_status_12")] = "Completed"
+                    df_babies.at[ii, ("Acquired", "Twelve Months", "twelvemo_notscan_v3")] = "N/A"
                 for col in these_scans:
                     scan = col[-1]
                     df_babies.at[ii, col] = "Acquired"
@@ -152,15 +194,28 @@ def refine_the_dataframe(df_babies):
                         elif row[("Processed", age, "Functional-Surface")] == True:
                             df_babies.at[ii, ("Processed", age, "Functional-Surface")] = "Processed"
 
-    to_drop_newborn = [("Acquired", "Newborn", col) for col in ["sixmo_status_v2", "sixmo_notscan_v2"]]
+    to_drop_newborn = [("Acquired", "Newborn", col) for col in ["sixmo_status_v2", "sixmo_notscan_v2",]]
     to_drop_sixmonth = [("Acquired", "Six Months", col) for col in ["neonatal_status_v2", "neonatal_notscan_v2"]]
+    # ABC
+    if project == "ABC":
+        to_drop_newborn += [("Acquired", "Newborn", col) for col in ["scan_status_12", "twelvemo_notscan_v3"]]
+        to_drop_sixmonth += [("Acquired", "Six Months", col) for col in ["scan_status_12", "twelvemo_notscan_v3"]]
     df_babies = df_babies.drop(columns=to_drop_newborn + to_drop_sixmonth)
     # Don't need two biological sex columns
     df_babies = df_babies.drop(columns=[("Acquired", "Six Months", "Biological Sex")])
+    if project == "ABC":
+        df_babies = df_babies.drop(columns=[("Acquired", "Twelve Months", "Biological Sex")])
     # If any of the Newborn Biolobical Sex Values are False, just set to "Missing"
     for ii, row in df_babies.iterrows():
         if row[("Acquired", "Newborn", "Biological Sex")] == False:
             df_babies.at[ii, ("Acquired", "Newborn", "Biological Sex")] = "Missing"
+    if "Twelve Months" in AGES:
+        to_drop_twelve = [("Acquired", "Twelve Months", col) for col in ["neonatal_status_v2", "neonatal_notscan_v2", "sixmo_status_v2", "sixmo_notscan_v2"]]
+        df_babies = df_babies.drop(columns=to_drop_twelve)
+        df_babies = df_babies.rename(
+            columns={"scan_status_12": "Status",
+                    "twelvemo_notscan_v3": "Reason Not-Acquired"},
+        )
 
     df_babies.rename(
         columns={"neonatal_status_v2": "Status",
@@ -181,28 +236,58 @@ def refine_the_dataframe(df_babies):
 def build_dataframe(project):
     idx_col = "study_id"
     csvs = get_csv_paths(project)
-    df_newborn = pd.read_csv(csvs[f"acquisition_newborn"], index_col=idx_col)
-    df_sixmonth = pd.read_csv(csvs[f"acquisition_sixmonth"], index_col=idx_col)
-    derivatives_newborn = pd.read_csv(csvs[f"derivatives_newborn"], index_col=idx_col)
-    derivatives_sixmonth = pd.read_csv(csvs[f"derivatives_sixmonth"], index_col=idx_col)
+    df_newborn = pd.read_csv(csvs["acquisition_newborn"], index_col=idx_col)
+    df_sixmonth = pd.read_csv(csvs["acquisition_sixmonth"], index_col=idx_col)
+    derivatives_newborn = pd.read_csv(csvs["derivatives_newborn"], index_col=idx_col)
+    derivatives_sixmonth = pd.read_csv(csvs["derivatives_sixmonth"], index_col=idx_col)
     df_redcap = get_redcap_df(csvs["redcap"], csvs["datadict"], project)
+    if project == "ABC":
+        df_twelvemonth = pd.read_csv(csvs["acquisition_twelvemonth"], index_col=idx_col)
+        derivatives_twelvemonth = pd.read_csv(csvs["derivatives_twelvemonth"], index_col=idx_col)
+        if "Recon-all" not in derivatives_twelvemonth.columns:
+            derivatives_twelvemonth["Recon-all"] = False
     # Now merge redcap df with newborn df
     df_newborn = df_newborn.merge(df_redcap, left_index=True, right_index=True, how="outer")
     df_sixmonth = df_sixmonth.merge(df_redcap, left_index=True, right_index=True, how="outer")
+    if project == "ABC":
+        df_twelvemonth = df_twelvemonth.merge(df_redcap, left_index=True, right_index=True, how="outer")
     # Merge the dataframes across ages. Set another index as "visit"
-    df_acquired = pd.concat(
-        [df_newborn, df_sixmonth],
-        axis=1,
-        keys=["Newborn", "Six Months"],
-        names=["Visit", "Scan"],
-    )
-    # Set Multi-index
-    df_nibabies = pd.concat(
-        [derivatives_newborn, derivatives_sixmonth],
-        axis=1,
-        keys=["Newborn", "Six Months"],
-        names=["Visit", "Scan"],
-    )  
+    keys = ["Newborn", "Six Months"]
+    if project == "ABC":
+        keys.append("Twelve Months")
+        assert keys == ["Newborn", "Six Months", "Twelve Months"]
+        df_acquired = pd.concat(
+            [df_newborn, df_sixmonth, df_twelvemonth],
+            axis=1,
+            keys=keys,
+            names=["Visit", "Scan"],
+        )
+    else:
+        assert keys == ["Newborn", "Six Months"]
+        df_acquired = pd.concat(
+            [df_newborn, df_sixmonth],
+            axis=1,
+            keys=keys,
+            names=["Visit", "Scan"],
+        )
+    
+    if project == "ABC":
+        assert keys == ["Newborn", "Six Months", "Twelve Months"]
+        df_nibabies = pd.concat(
+            [derivatives_newborn, derivatives_sixmonth, derivatives_twelvemonth],
+            axis=1,
+            keys=keys,
+            names=["Visit", "Scan"],
+        )
+    else:
+        assert keys == ["Newborn", "Six Months"]
+        df_nibabies = pd.concat(
+            [derivatives_newborn, derivatives_sixmonth],
+            axis=1,
+            keys=keys,
+            names=["Visit", "Scan"],
+        )
+
     with pd.option_context("future.no_silent_downcasting", True):
         df_nibabies = df_nibabies.fillna(False)
     df_babies = pd.concat(
@@ -214,7 +299,7 @@ def build_dataframe(project):
     with pd.option_context("future.no_silent_downcasting", True):
         df_babies = df_babies.fillna(False)
     # Make the dataframe more readable
-    df_babies = refine_the_dataframe(df_babies)
+    df_babies = refine_the_dataframe(df_babies, project=project)
     # assert that there are no np.nans in the dataframe
     if df_babies.isnull().values.any():
         # Where are the np.nans?
