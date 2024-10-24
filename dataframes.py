@@ -1,3 +1,5 @@
+import argparse 
+
 from pathlib import Path
 
 import pandas as pd
@@ -17,11 +19,14 @@ def build_acquisition_df(project, session):
     bpath = get_paths(project, session)["bids"]
     df = create_participant_df(bpath)
 
-    df[f"Anatomical"] = None
-    df[f"T1w"] = None
-    df[f"T2w"] = None
-    df[f"Functional"] = None
-    df[f"DWI"] = None
+    df["Anatomical"] = None
+    df["T1w"] = None
+    df["T2w"] = None
+    df["Functional"] = None
+    df["DWI"] = None
+    if project == "BABIES":
+        df["T2w-Focused"] = None
+        df["qMRI"] = None
     for i, series in df.iterrows():
         sub = series["study_id"]
 
@@ -32,24 +37,41 @@ def build_acquisition_df(project, session):
         anat_path = sub_path / f"ses-{session}" / "anat"
         func_path = sub_path / f"ses-{session}" / "func"
         dwi_path = sub_path / f"ses-{session}" / "dwi"
+        # sometimes files live in here but not in anat_path
+        anat_raw_path = sub_path / f"ses-{session}" / "anat_raw"
+        anat_archive_path = sub_path / f"ses-{session}" / "anat_temp_archive"
 
         has_t1w = any(anat_path.glob("*_T1w.*"))
         has_t2w = any(anat_path.glob("*_T2w.*"))
         if not has_t1w and not has_t2w:
-            anat_raw_path = sub_path / f"ses-{session}" / "anat_raw"
             if anat_raw_path.exists():
                 has_t1w = any(anat_raw_path.glob("*_T1w.*"))
                 has_t2w = any(anat_raw_path.glob("*_T2w.*"))
 
-        df.loc[i, f"T1w"] = has_t1w
-        df.loc[i, f"T2w"] = has_t2w
-        df.loc[i, f"Anatomical"] = has_t1w or has_t2w
+        df.loc[i, "T1w"] = has_t1w
+        df.loc[i, "T2w"] = has_t2w
+        df.loc[i, "Anatomical"] = has_t1w or has_t2w
 
         has_func = any(func_path.glob("*_bold.*"))
-        df.loc[i, f"Functional"] = has_func
+        df.loc[i, "Functional"] = has_func
 
         has_dwi = any(dwi_path.glob("*_dwi.*"))
-        df.loc[i, f"DWI"] = has_dwi
+        df.loc[i, "DWI"] = has_dwi
+
+        if project == "BABIES":
+            # T2w Focused
+            check1 = any(anat_path.glob("*Blackford*"))
+            check2 = any(anat_raw_path.glob("*Blackford*"))
+            check3 = any(anat_archive_path.glob("*Blackford*"))
+            has_t2w_focused = check1 or check2 or check3
+            df.loc[i, "T2w-Focused"] = has_t2w_focused
+            # qMRI search
+            check1 = any(anat_path.glob("*_VFA*"))
+            check2 = any(anat_raw_path.glob("*_VFA*"))
+            check3 = any(anat_archive_path.glob("*_VFA*"))
+            has_qmri = check1 or check2 or check3
+            df.loc[i, "qMRI"] = has_qmri
+
         print(".", end="", flush=True)
 
     # Save file
@@ -70,13 +92,22 @@ def build_derivatives_df(project, session):
     df = df.merge(reconall_df, on="study_id", how="outer")
     # Save file
     save_df_to_csv(df, project, session, "derivatives")
+
+    # Finally, build Nibabies auto report but save it separately
+    save_df_to_csv(
+        build_nibabies_df(project, session, auto=True),
+        project,
+        session,
+        stage="nibabies-auto"
+    )
     return df
 
-def build_nibabies_df(project, session):
+def build_nibabies_df(project, session, auto=False):
     """ Build a CSV File for Nibabies derivatives."""
     print_starting_msg(project, session, "Processed Nibabies")
 
-    nibabies_path = get_paths(project, session)["nibabies"]
+    key = "nibabies_auto" if auto else "nibabies"
+    nibabies_path = get_paths(project, session)[key]
     df = create_participant_df(nibabies_path)
     if project == "BABIES" and session == "newborn":
         SI_df = build_SI_data_df(session)
@@ -252,3 +283,25 @@ def build_reconall_df(project, session):
         df.loc[i, f"Recon-all"] = has_reconall
         print(".", end="", flush=True)
     return df
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--project",
+        dest="project",
+        required=True,
+        type=str,
+        choices=["BABIES", "ABC"]
+        )
+    parser.add_argument(
+        "--session",
+        dest="session",
+        required=True,
+        type=str,
+        choices=["newborn", "sixmonth", "twelvemonth"]
+        )
+
+    args = parser.parse_args()
+    build_acquisition_df(args.project, args.session)
+    build_derivatives_df(args.project, args.session)

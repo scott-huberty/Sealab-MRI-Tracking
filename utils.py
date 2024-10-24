@@ -30,7 +30,7 @@ def get_participant_list(directory):
     directory : pathlib.Path
         The directory containing the participant folders.
     """
-    files = [f.name for f in directory.glob("sub-*/") if f.is_dir()]
+    files = [f.name for f in (list(directory.glob("sub-1???/")) + list(directory.glob("sub-12???/"))) if f.is_dir()]
     # assert that no html files were added
     assert not any([f.endswith(".html") for f in files])
     if not files:

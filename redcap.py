@@ -2,6 +2,13 @@ from pathlib import Path
 
 import pandas as pd
 
+
+
+GENDER_DICT = {
+    "sub-1019": "Male",
+    "sub-1375": "Female",
+    }
+
 BABIES_WANT_COLS = ["study_id",
                     "neonatal_status_v2",
                     "sixmo_status_v2",
@@ -21,6 +28,9 @@ ABC_WANT_COLS = ["record_id",
                  "twelvemo_notscan_v3",
                  ]
 
+
+def drop_non_enrolled(df):
+    return df.dropna(subset=["neonatal_status_v2", "sixmo_status_v2"], how="all")
 
 def _get_csv_dtypes(project):
     if project == "BABIES":
@@ -93,6 +103,7 @@ def process_redcap_df(df_redcap, df_datadict, project):
     for column in need_cols:
         df_redcap = _map_codes(df_redcap, df_datadict, column)
     df_redcap = get_biological_sex(df_redcap, project)
+    df_redcap = drop_non_enrolled(df_redcap)
     return df_redcap
 
 def _map_codes(df_redcap, df_datadict, column):
@@ -118,11 +129,12 @@ def get_redcap_df(fname, fname_datadict, project):
 def get_biological_sex(df, project):
     # 1. check if infant_sex is missing
     # 2. if missing, check if child_sex is missing
-    # 3. if both are missing, return "Missing"
-    # 4. if either is not missing, return the value
-    # 5. if both are not missing, assert that they are the same
-    # 6. if they are the same, return the value
-    # 7. if they are different, raise an error
+    # 3. if still missing, check GENDER_DICT variable for hard coded value
+    # 4. if 1, 2, & 3 are missing, return "Missing"
+    # 5. if either is not missing, return the value
+    # 6. if both are not missing, assert that they are the same
+    # 7. if they are the same, return the value
+    # 8. if they are different, raise an error
     df["Biological Sex"] = "Missing"
     for ii, row in df.iterrows():
         # First Babies
@@ -135,7 +147,11 @@ def get_biological_sex(df, project):
                                     f"({row['infant_sex']} and {row['child_sex']})")
             if _is_falsey(row["infant_sex"]):
                 if _is_falsey(row["child_sex"]):
-                    continue
+                    biological_sex = GENDER_DICT.get(row.name, None)
+                    if not biological_sex:
+                        continue
+                    else:
+                        df.at[ii, "Biological Sex"] = biological_sex
                 else:
                     df.at[ii, "Biological Sex"] = row["child_sex"]
             else:

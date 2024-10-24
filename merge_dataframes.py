@@ -3,6 +3,7 @@ from warnings import warn
 
 import numpy as np
 import pandas as pd
+
 from paths import get_csv_paths
 from redcap import get_redcap_df
 
@@ -46,6 +47,9 @@ def refine_the_dataframe(df_babies, project):
         AGES = ["Newborn", "Six Months"]
     for ii, row in df_babies.iterrows():
         for age in AGES:
+            _scans = SCANS
+            if project == "BABIES":
+                _scans += ["T2w-Focused", "qMRI"] # XXX: add these to the constant once we implement for ABC
             these_scans = [("Acquired", age, col) for col in SCANS]
             ############################
             # MISSING ALL SCANS

@@ -15,9 +15,10 @@ def get_paths(project, session):
     project_path = SERVER_PATH / project / "MRI" / ses_dir
     bids_path = project_path / "BIDS"
     derivatives_path = project_path / "derivatives"
-    nibabies_path = derivatives_path / "nibabies"
-    keys = ["project", "bids", "derivatives", "nibabies"]
-    paths = [project_path, bids_path, derivatives_path, nibabies_path]
+    nibabies_path = derivatives_path / "Nibabies"
+    nibabies_auto_path = derivatives_path / "Nibabies_auto"
+    keys = ["project", "bids", "derivatives", "nibabies", "nibabies_auto"]
+    paths = [project_path, bids_path, derivatives_path, nibabies_path, nibabies_auto_path]
     assert len(keys) == len(paths)
     path_dict = dict(zip(keys, paths))
     return path_dict
