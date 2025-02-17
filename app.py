@@ -213,6 +213,7 @@ for ii, (level, col) in zip([0,0,1,1], (counts_df.columns)):
 
 ############################ APP ####################################
 app = Dash(external_stylesheets=[dbc.themes.SLATE])
+server = app.server
 
 ################################## LAYOUT ##################################
 app.layout = dbc.Container([
